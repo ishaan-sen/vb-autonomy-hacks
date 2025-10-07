@@ -10,15 +10,15 @@ with open("ex2.jpg", "rb") as f:
 payload = {
     "taskType": "IMAGE_VARIATION",
     "imageVariationParams": {
-        "images": [img_b64],          # ✅ 字符串数组
-        "text": "cinematic warm sunset lighting, slightly sharper details",
-        "similarityStrength": 0.7     # 0.2–1.0（越低越随机）
+        "images": [img_b64],          # 
+        "text": "flood this region.", #make the building collapse
+        "similarityStrength": 0.7     # 0.2–1.0
     },
-    "imageGenerationConfig": {        # 推理参数放这里
+    "imageGenerationConfig": {        # 
         "numberOfImages": 1,
         "cfgScale": 8.0,
         "seed": 42,
-        # 可选："width":1024,"height":1024（见允许分辨率表）
+        # "width":1024,"height":1024
     }
 }
 
@@ -31,4 +31,4 @@ print(resp.status_code, resp.text[:200])
 resp.raise_for_status()
 img_b64 = resp.json()["images"][0]
 open("variation.png", "wb").write(base64.b64decode(img_b64))
-print("✅ 已保存 variation.png")
+print("✅ Saved variation.png")
