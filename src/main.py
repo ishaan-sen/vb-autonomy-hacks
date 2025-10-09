@@ -20,43 +20,65 @@ show_blockages = st.sidebar.checkbox("Show threat zones", True)
 show_avoid_zones = st.sidebar.checkbox("Show hostile areas", True)
 
 @st.cache_data
+@st.cache_data
 def load_threats_from_csv():
-    """Load threat/hazard polygons from CSV file (cached)"""
-    try:
-        df = pd.read_csv("data/threats.csv")
+    """Load threat/hazard polygons from S3 or local CSV file (cached). Falls back silently to defaults."""
+    import boto3
+    import io
+
+    bucket_name = os.environ.get("THREAT_S3_BUCKET", "autogators-data")  # optional env var
+    object_key = os.environ.get("THREAT_S3_KEY", "data/threats.csv")
+
+    def parse_threats_from_df(df):
         threats = []
         for _, row in df.iterrows():
-            # Create polygon from bounding box coordinates
-            polygon = Polygon([
-                (row['lon_min'], row['lat_min']),  # bottom-left
-                (row['lon_max'], row['lat_min']),  # bottom-right
-                (row['lon_max'], row['lat_max']),  # top-right
-                (row['lon_min'], row['lat_max']),  # top-left
-                (row['lon_min'], row['lat_min'])   # close the polygon
-            ])
-            threats.append({
-                'polygon': polygon,
-                'stem': row['stem'],
-                'class': row['class'],
-                'class_id': row['class_id']
-            })
+            try:
+                polygon = Polygon([
+                    (row['lon_min'], row['lat_min']),
+                    (row['lon_max'], row['lat_min']),
+                    (row['lon_max'], row['lat_max']),
+                    (row['lon_min'], row['lat_max']),
+                    (row['lon_min'], row['lat_min'])
+                ])
+                threats.append({
+                    'polygon': polygon,
+                    'stem': row.get('stem', f"THREAT_{_}"),
+                    'class': row.get('class', 'unknown'),
+                    'class_id': int(row.get('class_id', _))
+                })
+            except Exception:
+                continue
         return threats
-    except FileNotFoundError:
-        st.error("Could not find data/threats.csv file. Using default threat zones.")
-        # Fallback to original hardcoded threats
-        return [
-            {'polygon': Polygon([(-86.80680, 36.14580), (-86.80650, 36.14580), (-86.80650, 36.14610), (-86.80680, 36.14610)]), 'stem': 'IED_1', 'class': 'explosive', 'class_id': 1},
-            {'polygon': Polygon([(-86.80550, 36.14720), (-86.80520, 36.14720), (-86.80520, 36.14750), (-86.80550, 36.14750)]), 'stem': 'MINE_1', 'class': 'landmine', 'class_id': 2},
-            {'polygon': Polygon([(-86.80480, 36.14650), (-86.80460, 36.14650), (-86.80460, 36.14690), (-86.80480, 36.14690)]), 'stem': 'UXO_1', 'class': 'ordnance', 'class_id': 3},
-            {'polygon': Polygon([(-86.80300, 36.14800), (-86.80270, 36.14800), (-86.80270, 36.14830), (-86.80300, 36.14830)]), 'stem': 'IED_2', 'class': 'explosive', 'class_id': 4},
-            {'polygon': Polygon([(-86.80420, 36.14540), (-86.80380, 36.14540), (-86.80380, 36.14560), (-86.80420, 36.14560)]), 'stem': 'MINE_2', 'class': 'landmine', 'class_id': 5},
-            {'polygon': Polygon([(-86.80700, 36.14650), (-86.80670, 36.14650), (-86.80670, 36.14680), (-86.80700, 36.14680)]), 'stem': 'UXO_2', 'class': 'ordnance', 'class_id': 6},
-            {'polygon': Polygon([(-86.80600, 36.14480), (-86.80520, 36.14480), (-86.80520, 36.14500), (-86.80600, 36.14500)]), 'stem': 'ROADBLOCK_1', 'class': 'obstacle', 'class_id': 7},
-            {'polygon': Polygon([(-86.80850, 36.14400), (-86.80820, 36.14400), (-86.80820, 36.14440), (-86.80850, 36.14440)]), 'stem': 'IED_3', 'class': 'explosive', 'class_id': 8}
-        ]
-    except Exception as e:
-        st.error(f"Error loading threats.csv: {str(e)}. Using default threat zones.")
-        return []
+
+    # --- Try to load from S3 ---
+    try:
+        s3 = boto3.client('s3')
+        obj = s3.get_object(Bucket=bucket_name, Key=object_key)
+        csv_data = obj['Body'].read().decode('utf-8')
+        df = pd.read_csv(io.StringIO(csv_data))
+        return parse_threats_from_df(df)
+    except Exception:
+        pass  # silently fail and try local CSV
+
+    # --- Try to load from local file ---
+    try:
+        df = pd.read_csv("data/threats.csv")
+        return parse_threats_from_df(df)
+    except Exception:
+        pass  # silently fail and use defaults
+
+    # --- Final fallback: hardcoded threats ---
+    return [
+        {'polygon': Polygon([(-86.80680, 36.14580), (-86.80650, 36.14580), (-86.80650, 36.14610), (-86.80680, 36.14610)]), 'stem': 'IED_1', 'class': 'explosive', 'class_id': 1},
+        {'polygon': Polygon([(-86.80550, 36.14720), (-86.80520, 36.14720), (-86.80520, 36.14750), (-86.80550, 36.14750)]), 'stem': 'MINE_1', 'class': 'landmine', 'class_id': 2},
+        {'polygon': Polygon([(-86.80480, 36.14650), (-86.80460, 36.14650), (-86.80460, 36.14690), (-86.80480, 36.14690)]), 'stem': 'UXO_1', 'class': 'ordnance', 'class_id': 3},
+        {'polygon': Polygon([(-86.80300, 36.14800), (-86.80270, 36.14800), (-86.80270, 36.14830), (-86.80300, 36.14830)]), 'stem': 'IED_2', 'class': 'explosive', 'class_id': 4},
+        {'polygon': Polygon([(-86.80420, 36.14540), (-86.80380, 36.14540), (-86.80380, 36.14560), (-86.80420, 36.14560)]), 'stem': 'MINE_2', 'class': 'landmine', 'class_id': 5},
+        {'polygon': Polygon([(-86.80700, 36.14650), (-86.80670, 36.14650), (-86.80670, 36.14680), (-86.80700, 36.14680)]), 'stem': 'UXO_2', 'class': 'ordnance', 'class_id': 6},
+        {'polygon': Polygon([(-86.80600, 36.14480), (-86.80520, 36.14480), (-86.80520, 36.14500), (-86.80600, 36.14500)]), 'stem': 'ROADBLOCK_1', 'class': 'obstacle', 'class_id': 7},
+        {'polygon': Polygon([(-86.80850, 36.14400), (-86.80820, 36.14400), (-86.80820, 36.14440), (-86.80850, 36.14440)]), 'stem': 'IED_3', 'class': 'explosive', 'class_id': 8}
+    ]
+
 
 @st.cache_data
 def load_base_graph():
