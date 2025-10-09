@@ -6,8 +6,8 @@
 set -e  # Exit on error
 
 # Configuration variables
-INSTANCE_NAME="my-dev-instance"
-INSTANCE_TYPE="t2.micro"  # Free tier eligible
+INSTANCE_NAME="autogators-web-ui"
+INSTANCE_TYPE="t3.large"  # Free tier eligible
 AMI_ID=""  # Will be auto-detected
 KEY_NAME="my-ec2-key"
 SECURITY_GROUP_NAME="my-ssh-sg"
