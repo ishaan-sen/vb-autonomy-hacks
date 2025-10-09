@@ -7,6 +7,7 @@ from shapely.geometry import Point, LineString, Polygon
 import matplotlib.colors as mcolors
 import pandas as pd
 import random
+import os
 
 st.set_page_config(page_title="pathPlanner", layout="wide")
 st.title("AutoGators Convoy Routing UI")
