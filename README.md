@@ -1,5 +1,8 @@
 # AutoGators: Autonomous Convoy Routing System
 
+**Winner — “Most Innovative Solution” ($10,000)**  
+Awarded at the **AWS × Vanderbilt Mission Autonomy Hackathon (Oct 2025)**.  
+
 ## Overview
 
 AutoGators is a system designed to enable autonomous path planning for ground convoys in complex, resource-constrained environments where connectivity to a centralized command center may be limited. The system integrates aerial reconnaissance, threat detection, and predictive routing to safely guide convoys through dynamic battlefields or hazard zones.
